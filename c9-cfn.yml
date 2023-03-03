@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS Workshop - Use Terraform to Build Cloud9 IDE
+Parameters:
+  CustomerCode:
+    Type: String
+    Default: pdo
+    Description: 3 or 4 letter unique identifier for a customer used in tag values and resource names
+  EnvironmentCode:
+    Type: String
+    Default: pd
+    Description: 2 character code to signify the workloads environment used in tag values and resource names
+  VpcCidr:
+    Type: String
+    Default: "10.180"
+    Description: First 2 octets of VPC and subnet CIDR range
+  CustomerTag:
+    Type: String
+    Default: planentary defence organization
+    Description: Customer name tag value
+  EnvironmentTag:
+    Type: String
+    Default: production
+    Description: Customer environment tag value
+  VPC:
+    Type: String
+    Default: vpc-0eb1d70c06045b90d
+    Description: Main VPC   
+  
+Resources:
+  pdosbnpbpd01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub ${VpcCidr}.7.0/24
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${CustomerCode}sbnpb${EnvironmentCode}01
+        - Key: provisioner
+          Value: CFN
+        - Key: workshop
+          Value: pdo
+        - Key: resourcetype
+          Value: network
+        - Key: customer
+          Value: !Sub ${CustomerTag}
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: codeblock
+          Value: existing_resources
+
+  pdoigwpd01:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${CustomerCode}sbnpb${EnvironmentCode}01
+        - Key: provisioner
+          Value: CFN
+        - Key: workshop
+          Value: pdo
+        - Key: resourcetype
+          Value: network
+        - Key: customer
+          Value: !Sub ${CustomerTag}
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: codeblock
+          Value: existing_resources
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+       Ref: VPC
+      InternetGatewayId:
+       Ref: pdoigwpd01
+
+
+  pdortbpd01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${CustomerCode}sbnpb${EnvironmentCode}01
+        - Key: provisioner
+          Value: CFN
+        - Key: workshop
+          Value: pdo
+        - Key: resourcetype
+          Value: network
+        - Key: customer
+          Value: !Sub ${CustomerTag}
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: codeblock
+          Value: existing_resources
+
+  pdortepd01:
+    Type: AWS::EC2::Route
+    DependsOn: 
+      - AttachGateway
+    Properties:
+       RouteTableId:
+         Ref: pdortbpd01
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId:
+         Ref: pdoigwpd01
+
+  pdortapd01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: pdosbnpbpd01
+      RouteTableId:
+        Ref: pdortbpd01
+
+  pdocl9dvtfma01:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      AutomaticStopTimeMinutes: 180
+      Description: Terraform Development Environment
+      ImageId: amazonlinux-2-x86_64
+      InstanceType: t2.medium
+      Name: !Sub ${CustomerCode}_development_environment
+      SubnetId: !Ref pdosbnpbpd01 
+      Repositories:
+          - RepositoryUrl: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/pdocdcdvtfm01
+            PathComponent: /my_release
+          - RepositoryUrl: https://github.com/aws-samples/terraform-aws-windows-workloads-on-aws.git
+            PathComponent: /code_library
+      Tags:
+        - Key: provisioner
+          Value: CFN
+        - Key: workshop
+          Value: pdo
+        - Key: resourcetype
+          Value: softwaredevelopment
+        - Key: customer
+          Value: !Sub ${CustomerTag}
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: codeblock
+          Value: existing_resources
